@@ -19,6 +19,7 @@ import RecommendedQuestions, {
 import MarkdownBlock from '@/components/editor/MarkdownBlock';
 import {
   AskingTaskType,
+  ClarificationQuestion,
   RecommendedQuestionsTask,
 } from '@/apollo/client/graphql/__types__';
 
@@ -46,6 +47,7 @@ interface Props {
     askingStreamTask: string;
     recommendedQuestions: RecommendedQuestionsTask;
     intentReasoning: string;
+    clarificationQuestions?: ClarificationQuestion[];
   };
   error?: any;
   onIntentSQLAnswer: () => void;
@@ -56,6 +58,10 @@ interface Props {
     question: string;
     sql: string;
   }) => void;
+  onSubmitClarification?: (answers: Array<{
+    questionIndex: number;
+    answer: string;
+  }>) => Promise<void>;
   onClose: () => void;
   onStop: () => Promise<void>;
   loading?: boolean;
@@ -251,6 +257,143 @@ const MisleadingQuery = makeProcessingError({
   title: 'Clarification needed',
 });
 
+const ClarificationAnswer = (props: Props) => {
+  const { data, onSubmitClarification, onClose } = props;
+  const { clarificationQuestions, originalQuestion } = data;
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!onSubmitClarification) return;
+    const formattedAnswers = Object.entries(answers).map(
+      ([questionIndex, answer]) => ({
+        questionIndex: parseInt(questionIndex, 10),
+        answer,
+      }),
+    );
+    await onSubmitClarification(formattedAnswers);
+  };
+
+  return (
+    <Wrapper>
+      <div className="d-flex justify-space-between text-medium mb-2">
+        <div className="d-flex align-center">
+          <MessageOutlined className="mr-2 mt-1 geekblue-6" />
+          <b className="text-semi-bold">{originalQuestion}</b>
+        </div>
+        <Button
+          className="adm-btn-no-style gray-7 bg-gray-3 text-sm px-2"
+          type="text"
+          size="small"
+          onClick={onClose}
+        >
+          <CloseOutlined className="-mr-1" />
+          Close
+        </Button>
+      </div>
+      <div className="py-2 gray-7">
+        We need a bit more information to answer your question accurately:
+      </div>
+      <div className="py-2">
+        {clarificationQuestions?.map((q, index) => (
+          <div key={index} className="mb-4">
+            <div className="text-medium mb-1">{q.question}</div>
+            {q.reasoning && (
+              <div className="gray-6 text-sm mb-2">{q.reasoning}</div>
+            )}
+            {q.type === 'single_choice' && (
+              <div className="d-flex flex-column gap-2">
+                {q.options?.map((opt) => (
+                  <label
+                    key={opt.value}
+                    className="d-flex align-center cursor-pointer"
+                  >
+                    <input
+                      type="radio"
+                      name={`clarification-${index}`}
+                      value={opt.value}
+                      checked={answers[index] === opt.value}
+                      onChange={(e) =>
+                        setAnswers((prev) => ({
+                          ...prev,
+                          [index]: e.target.value,
+                        }))
+                      }
+                      className="mr-2"
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {q.type === 'multiple_choice' && (
+              <div className="d-flex flex-column gap-2">
+                {q.options?.map((opt) => (
+                  <label
+                    key={opt.value}
+                    className="d-flex align-center cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      value={opt.value}
+                      checked={(answers[index] || '')
+                        .split(',')
+                        .includes(opt.value)}
+                      onChange={(e) => {
+                        const current = (answers[index] || '')
+                          .split(',')
+                          .filter(Boolean);
+                        const next = e.target.checked
+                          ? [...current, opt.value]
+                          : current.filter((v) => v !== opt.value);
+                        setAnswers((prev) => ({
+                          ...prev,
+                          [index]: next.join(','),
+                        }));
+                      }}
+                      className="mr-2"
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {q.type === 'text' && (
+              <textarea
+                className="w-100 p-2 border rounded"
+                rows={3}
+                value={answers[index] || ''}
+                onChange={(e) =>
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [index]: e.target.value,
+                  }))
+                }
+                placeholder="Type your answer here..."
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="d-flex justify-end gap-2">
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          type="primary"
+          loading={loading}
+          onClick={() => attachLoading(handleSubmit, setLoading)()}
+          disabled={
+            !clarificationQuestions?.every(
+              (_, i) => answers[i] !== undefined && answers[i] !== '',
+            )
+          }
+        >
+          Submit
+        </Button>
+      </div>
+    </Wrapper>
+  );
+};
+
 const getGeneralAnswerStateComponent = (state: PROCESS_STATE) => {
   return (
     {
@@ -263,6 +406,15 @@ const getMisleadingQueryStateComponent = (state: PROCESS_STATE) => {
   return (
     {
       [PROCESS_STATE.FINISHED]: MisleadingQuery,
+    }[state] || null
+  );
+};
+
+const getClarificationStateComponent = (state: PROCESS_STATE) => {
+  return (
+    {
+      [PROCESS_STATE.CLARIFICATION]: ClarificationAnswer,
+      [PROCESS_STATE.FINISHED]: ClarificationAnswer,
     }[state] || null
   );
 };
@@ -288,6 +440,8 @@ const makeProcessStateStrategy = (type: AskingTaskType) => {
   if (type === AskingTaskType.GENERAL) return getGeneralAnswerStateComponent;
   if (type === AskingTaskType.MISLEADING_QUERY)
     return getMisleadingQueryStateComponent;
+  if (type === AskingTaskType.CLARIFICATION)
+    return getClarificationStateComponent;
   return getDefaultStateComponent;
 };
 

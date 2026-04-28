@@ -19,7 +19,8 @@ import {
   useInstantRecommendedQuestionsLazyQuery,
 } from '@/apollo/client/graphql/home.generated';
 import useAskingStreamTask from './useAskingStreamTask';
-import { THREAD } from '@/apollo/client/graphql/home';
+import { THREAD, SUBMIT_CLARIFICATION } from '@/apollo/client/graphql/home';
+import { useMutation } from '@apollo/client';
 import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
 import { nextTick } from '@/utils/time';
 
@@ -182,6 +183,10 @@ export default function useAskPrompt(threadId?: number) {
       pollInterval: 1000,
     });
 
+  const [submitClarification] = useMutation(SUBMIT_CLARIFICATION, {
+    onError: (error) => console.error(error),
+  });
+
   const askingTask = useMemo(
     () => askingTaskResult.data?.askingTask || null,
     [askingTaskResult.data],
@@ -316,6 +321,26 @@ export default function useAskPrompt(threadId?: number) {
     });
   };
 
+  const onSubmitClarification = async (
+    answers: Array<{ questionIndex: number; answer: string }>,
+  ) => {
+    const queryId = askingTask?.queryId;
+    if (!queryId) return;
+    try {
+      // Reset stream task if any
+      askingStreamTaskResult.reset();
+      await submitClarification({
+        variables: { queryId, answers },
+      });
+      // Restart polling after submitting clarification
+      await fetchAskingTask({
+        variables: { taskId: queryId },
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const onStopPolling = () => askingTaskResult.stopPolling();
 
   const onStopStreaming = () => askingStreamTaskResult.reset();
@@ -332,6 +357,7 @@ export default function useAskPrompt(threadId?: number) {
     onReRun,
     onSubmit,
     onFetching,
+    onSubmitClarification,
     onStopPolling,
     onStopStreaming,
     onStopRecommend,

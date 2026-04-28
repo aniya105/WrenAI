@@ -18,6 +18,14 @@ export const getIsProcessing = (status: PROCESS_STATE) =>
 export const convertAskingTaskToProcessState = (data: AskingTask) => {
   if (!data) return null;
 
+  // CLARIFICATION type is a special finished state that requires user input
+  if (
+    data.status === AskingTaskStatus.FINISHED &&
+    data.type === AskingTaskType.CLARIFICATION
+  ) {
+    return PROCESS_STATE.CLARIFICATION;
+  }
+
   const processState = {
     [AskingTaskStatus.UNDERSTANDING]: PROCESS_STATE.UNDERSTANDING,
     [AskingTaskStatus.SEARCHING]: PROCESS_STATE.SEARCHING,
@@ -117,8 +125,12 @@ export class ProcessStateMachine {
       prev: [PROCESS_STATE.PLANNING],
     },
     [PROCESS_STATE.CORRECTING]: {
-      next: [PROCESS_STATE.FINISHED, PROCESS_STATE.FAILED],
+      next: [PROCESS_STATE.FINISHED, PROCESS_STATE.FAILED, PROCESS_STATE.CLARIFICATION],
       prev: [PROCESS_STATE.GENERATING],
+    },
+    [PROCESS_STATE.CLARIFICATION]: {
+      next: [PROCESS_STATE.UNDERSTANDING, PROCESS_STATE.SEARCHING],
+      prev: [PROCESS_STATE.SEARCHING, PROCESS_STATE.PLANNING],
     },
     [PROCESS_STATE.FINISHED]: {
       next: [],

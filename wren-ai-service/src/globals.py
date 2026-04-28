@@ -153,6 +153,9 @@ def create_service_container(
                 "sql_knowledge_retrieval": retrieval.SqlKnowledges(
                     **pipe_components["sql_knowledge_retrieval"],
                 ),
+                "clarification_generation": generation.ClarificationGeneration(
+                    **pipe_components["clarification_generation"],
+                ),
             },
             allow_intent_classification=settings.allow_intent_classification,
             allow_sql_generation_reasoning=settings.allow_sql_generation_reasoning,
@@ -162,6 +165,7 @@ def create_service_container(
             max_histories=settings.max_histories,
             enable_column_pruning=settings.enable_column_pruning,
             max_sql_correction_retries=settings.max_sql_correction_retries,
+            enable_clarification=settings.enable_clarification,
             **query_cache,
         ),
         ask_feedback_service=services.AskFeedbackService(

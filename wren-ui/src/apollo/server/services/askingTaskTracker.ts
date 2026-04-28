@@ -51,6 +51,10 @@ export interface IAskingTaskTracker {
     threadId: number,
     threadResponseId: number,
   ): Promise<void>;
+  submitClarification(
+    queryId: string,
+    answers: Array<{ questionIndex: number; answer: string }>,
+  ): Promise<{ queryId: string }>;
 }
 
 export class AskingTaskTracker implements IAskingTaskTracker {
@@ -185,6 +189,25 @@ export class AskingTaskTracker implements IAskingTaskTracker {
     await this.wrenAIAdaptor.cancelAsk(queryId);
   }
 
+  public async submitClarification(
+    queryId: string,
+    answers: Array<{ questionIndex: number; answer: string }>,
+  ): Promise<{ queryId: string }> {
+    const response = await this.wrenAIAdaptor.submitClarification(
+      queryId,
+      answers,
+    );
+
+    // Reset the task to allow continued polling after clarification
+    const task = this.trackedTasks.get(queryId);
+    if (task) {
+      task.isFinalized = false;
+      task.lastPolled = 0;
+    }
+
+    return response;
+  }
+
   public stopPolling(): void {
     if (this.pollingIntervalId) {
       clearInterval(this.pollingIntervalId);
@@ -272,11 +295,12 @@ export class AskingTaskTracker implements IAskingTaskTracker {
               return;
             }
 
-            // if it's identified as GENERAL or MISLEADING_QUER
+            // if it's identified as GENERAL or MISLEADING_QUERY or CLARIFICATION
             // we don't need to update the database and finalize the task
             if (
               result.type === AskResultType.GENERAL ||
-              result.type === AskResultType.MISLEADING_QUERY
+              result.type === AskResultType.MISLEADING_QUERY ||
+              result.type === AskResultType.CLARIFICATION
             ) {
               task.isFinalized = true;
               // if it's rerun from cancelled, we need to update the task result to failed in db
@@ -284,7 +308,9 @@ export class AskingTaskTracker implements IAskingTaskTracker {
                 const errorCode =
                   result.type === AskResultType.GENERAL
                     ? Errors.GeneralErrorCodes.IDENTIED_AS_GENERAL
-                    : Errors.GeneralErrorCodes.IDENTIED_AS_MISLEADING_QUERY;
+                    : result.type === AskResultType.CLARIFICATION
+                      ? Errors.GeneralErrorCodes.IDENTIED_AS_MISLEADING_QUERY
+                      : Errors.GeneralErrorCodes.IDENTIED_AS_MISLEADING_QUERY;
                 const error = {
                   code: errorCode,
                   message: Errors.errorMessages[errorCode],

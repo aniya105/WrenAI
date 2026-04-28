@@ -57,6 +57,28 @@ class AskError(BaseModel):
     message: str
 
 
+class ClarificationOption(BaseModel):
+    label: str
+    value: str
+
+
+class ClarificationQuestion(BaseModel):
+    question: str
+    type: Literal["single_choice", "text"]
+    options: Optional[List[ClarificationOption]] = None
+    reasoning: Optional[str] = None
+
+
+class ClarificationAnswer(BaseModel):
+    question_index: int
+    answer: str
+
+
+class ClarifyRequest(BaseModel):
+    query_id: str
+    clarification_answers: List[ClarificationAnswer]
+
+
 class AskResultRequest(BaseModel):
     query_id: str
 
@@ -75,7 +97,7 @@ class _AskResultResponse(BaseModel):
     rephrased_question: Optional[str] = None
     intent_reasoning: Optional[str] = None
     sql_generation_reasoning: Optional[str] = None
-    type: Optional[Literal["GENERAL", "TEXT_TO_SQL"]] = None
+    type: Optional[Literal["GENERAL", "TEXT_TO_SQL", "CLARIFICATION"]] = None
     retrieved_tables: Optional[List[str]] = None
     response: Optional[List[AskResult]] = None
     invalid_sql: Optional[str] = None
@@ -85,6 +107,7 @@ class _AskResultResponse(BaseModel):
     general_type: Optional[
         Literal["MISLEADING_QUERY", "DATA_ASSISTANCE", "USER_GUIDE"]
     ] = None
+    clarification_questions: Optional[List[ClarificationQuestion]] = None
 
 
 class AskResultResponse(_AskResultResponse):
@@ -92,6 +115,7 @@ class AskResultResponse(_AskResultResponse):
     general_type: Optional[
         Literal["MISLEADING_QUERY", "DATA_ASSISTANCE", "USER_GUIDE"]
     ] = Field(None, exclude=True)
+    clarification_questions: Optional[List[ClarificationQuestion]] = Field(None, exclude=True)
 
 
 class AskService:
@@ -108,9 +132,13 @@ class AskService:
         max_histories: int = 5,
         maxsize: int = 1_000_000,
         ttl: int = 120,
+        enable_clarification: bool = True,
     ):
         self._pipelines = pipelines
         self._ask_results: Dict[str, AskResultResponse] = TTLCache(
+            maxsize=maxsize, ttl=ttl
+        )
+        self._ask_contexts: Dict[str, AskRequest] = TTLCache(
             maxsize=maxsize, ttl=ttl
         )
         self._allow_sql_generation_reasoning = allow_sql_generation_reasoning
@@ -121,6 +149,7 @@ class AskService:
         self._enable_column_pruning = enable_column_pruning
         self._max_histories = max_histories
         self._max_sql_correction_retries = max_sql_correction_retries
+        self._enable_clarification = enable_clarification
 
     def _is_stopped(self, query_id: str, container: dict):
         if (
@@ -128,6 +157,63 @@ class AskService:
         ) is not None and result.status == "stopped":
             return True
 
+        return False
+
+    def _should_check_clarification(
+        self, query: str, documents: list, sql_samples: list, instructions: list
+    ) -> bool:
+        """
+        Heuristic pre-filter to decide whether to run the ClarificationCheck pipeline.
+        Returns True if the query might be ambiguous and needs LLM-based clarification.
+        """
+        if not self._enable_clarification:
+            return False
+
+        # Rule 1: No documents retrieved -> no ambiguity to clarify
+        if not documents:
+            logger.info(f"[CLARIFICATION_HEURISTIC] Skipped: no documents retrieved for query: {query}")
+            return False
+
+        # Rule 2: Top-1 and Top-2 scores are very close -> potential ambiguity
+        if len(documents) >= 2:
+            top1_score = documents[0].get("score", 1.0)
+            top2_score = documents[1].get("score", 0.0)
+            if top1_score > 0 and (top1_score - top2_score) / top1_score < 0.1:
+                logger.info(f"[CLARIFICATION_HEURISTIC] Triggered by score_gap: top1={top1_score}, top2={top2_score}, query={query}")
+                return True
+
+        # Rule 3: Query keywords match multiple table names
+        query_lower = query.lower()
+        query_keywords = set(
+            word
+            for word in query_lower.split()
+            if len(word) > 3 and word not in {"show", "tell", "give", "what", "from", "with", "about", "this", "that", "have", "were", "they", "will", "would"}
+        )
+        matching_tables = 0
+        for doc in documents[:5]:
+            table_name = doc.get("table_name", "").lower()
+            if any(kw in table_name for kw in query_keywords):
+                matching_tables += 1
+        if matching_tables >= 2:
+            logger.info(f"[CLARIFICATION_HEURISTIC] Triggered by table_keyword_match: matched={matching_tables}, keywords={query_keywords}, query={query}")
+            return True
+
+        # Rule 4: Query has aggregation keywords but no clear target
+        agg_keywords = {"total", "sum", "average", "avg", "max", "min", "count", "top", "bottom"}
+        has_agg = any(kw in query_lower for kw in agg_keywords)
+        if has_agg and len(documents) >= 2:
+            logger.info(f"[CLARIFICATION_HEURISTIC] Triggered by aggregation_ambiguity: agg_present={has_agg}, num_docs={len(documents)}, query={query}")
+            return True
+
+        # Rule 5: Instructions mention a concept but there are multiple candidate tables
+        if instructions and len(documents) >= 2:
+            for instruction in instructions:
+                inst_text = str(instruction.get("instruction", "")).lower()
+                if any(kw in inst_text for kw in query_keywords):
+                    logger.info(f"[CLARIFICATION_HEURISTIC] Triggered by instruction_conflict: query={query}")
+                    return True
+
+        logger.info(f"[CLARIFICATION_HEURISTIC] Passed: no ambiguity detected for query: {query}")
         return False
 
     @observe(name="Ask Question")
@@ -149,6 +235,7 @@ class AskService:
         }
 
         query_id = ask_request.query_id
+        self._ask_contexts[query_id] = ask_request
         histories = ask_request.histories[: self._max_histories][
             ::-1
         ]  # reverse the order of histories
@@ -374,6 +461,50 @@ class AskService:
                     results["metadata"]["error_type"] = "NO_RELEVANT_DATA"
                     results["metadata"]["type"] = "TEXT_TO_SQL"
                     return results
+
+                # Clarification Check: after schema retrieval, before SQL generation
+                if self._should_check_clarification(
+                    user_query, documents, sql_samples, instructions
+                ):
+                    try:
+                        clarification_result = (
+                            await self._pipelines["clarification_generation"].run(
+                                query=user_query,
+                                db_schemas=table_ddls,
+                                language=ask_request.configurations.language
+                                if hasattr(ask_request, "configurations")
+                                else "english",
+                                histories=histories,
+                                instructions=instructions,
+                                sql_samples=sql_samples,
+                                query_id=query_id,
+                                custom_instruction=ask_request.custom_instruction,
+                            )
+                        ).get("post_process", {})
+
+                        logger.info(
+                            f"[CLARIFICATION_LLM] query={user_query}, needs_clarification={clarification_result.get('needs_clarification')}, "
+                            f"ambiguity_type={clarification_result.get('ambiguity_type')}, num_questions={len(clarification_result.get('clarification_questions', []))}"
+                        )
+                        if clarification_result.get("needs_clarification"):
+                            self._ask_results[query_id] = AskResultResponse(
+                                status="finished",
+                                type="CLARIFICATION",
+                                rephrased_question=rephrased_question,
+                                intent_reasoning=intent_reasoning,
+                                trace_id=trace_id,
+                                is_followup=True if histories else False,
+                                clarification_questions=clarification_result.get(
+                                    "clarification_questions", []
+                                ),
+                            )
+                            results["metadata"]["type"] = "CLARIFICATION"
+                            return results
+                    except Exception as e:
+                        logger.exception(
+                            f"[CLARIFICATION_LLM] Fallback after failure for query {query_id}: {e}"
+                        )
+                        # Fallback: continue with normal SQL generation
 
             if (
                 not self._is_stopped(query_id, self._ask_results)
@@ -691,3 +822,74 @@ class AskService:
                         data=SSEEvent.SSEEventMessage(message=chunk),
                     )
                     yield event.serialize()
+
+    @observe(name="Clarify and Resume")
+    @trace_metadata
+    async def clarify_and_resume(
+        self,
+        clarify_request: ClarifyRequest,
+        **kwargs,
+    ):
+        """
+        Resume the ask pipeline after the user has provided clarification answers.
+        Supports multi-turn clarification by re-running the full ask flow.
+        """
+        query_id = clarify_request.query_id
+        trace_id = kwargs.get("trace_id")
+
+        # Retrieve the original ask request
+        original_request = self._ask_contexts.get(query_id)
+        if not original_request:
+            logger.error(f"Original ask request not found for query_id: {query_id}")
+            self._ask_results[query_id] = AskResultResponse(
+                status="failed",
+                type="TEXT_TO_SQL",
+                error=AskError(
+                    code="OTHERS",
+                    message="Original ask request not found",
+                ),
+                trace_id=trace_id,
+            )
+            return
+
+        # Build clarification summary from user's answers
+        clarification_summary_parts = []
+        for answer in clarify_request.clarification_answers:
+            clarification_summary_parts.append(answer.answer)
+
+        clarification_summary = "; ".join(clarification_summary_parts)
+
+        # Create a new AskHistory entry for the clarification exchange
+        # We store the original question and the user's clarification as a pseudo-history
+        current_question = original_request.query
+        clarification_history = AskHistory(
+            question=current_question,
+            sql=f"Clarification: {clarification_summary}",
+        )
+
+        # Build updated histories
+        updated_histories = list(original_request.histories or [])
+        updated_histories.append(clarification_history)
+
+        # Optionally update the query to include clarification context
+        # This helps the retrieval and generation pipelines understand the refined intent
+        enriched_query = f"{current_question} (Note: {clarification_summary})"
+
+        # Create a new AskRequest with updated context
+        resumed_request = AskRequest(
+            query=enriched_query,
+            mdl_hash=original_request.mdl_hash,
+            histories=updated_histories[-self._max_histories :],
+            ignore_sql_generation_reasoning=original_request.ignore_sql_generation_reasoning,
+            enable_column_pruning=original_request.enable_column_pruning,
+            use_dry_plan=original_request.use_dry_plan,
+            allow_dry_plan_fallback=original_request.allow_dry_plan_fallback,
+            custom_instruction=original_request.custom_instruction,
+            query_id=query_id,
+        )
+
+        # Re-run the ask pipeline from the beginning
+        # The pipeline will naturally go through:
+        # understanding -> searching (db_schema_retrieval) -> clarification check -> planning -> generating -> finished
+        # If clarification is still needed, it will return CLARIFICATION again (multi-turn support)
+        await self.ask(resumed_request, **kwargs)

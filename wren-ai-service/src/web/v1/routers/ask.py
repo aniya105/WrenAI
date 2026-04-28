@@ -15,6 +15,7 @@ from src.web.v1.services.ask import (
     AskResponse,
     AskResultRequest,
     AskResultResponse,
+    ClarifyRequest,
     StopAskRequest,
     StopAskResponse,
 )
@@ -77,3 +78,20 @@ async def get_ask_streaming_result(
         service_container.ask_service.get_ask_streaming_result(query_id),
         media_type="text/event-stream",
     )
+
+
+@router.post("/asks/{query_id}/clarify")
+async def clarify_ask(
+    query_id: str,
+    clarify_request: ClarifyRequest,
+    background_tasks: BackgroundTasks,
+    service_container: ServiceContainer = Depends(get_service_container),
+    service_metadata: ServiceMetadata = Depends(get_service_metadata),
+) -> AskResponse:
+    clarify_request.query_id = query_id
+    background_tasks.add_task(
+        service_container.ask_service.clarify_and_resume,
+        clarify_request,
+        service_metadata=asdict(service_metadata),
+    )
+    return AskResponse(query_id=query_id)

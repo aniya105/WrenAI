@@ -107,6 +107,7 @@ const resolvers = {
     createInstantRecommendedQuestions:
       askingResolver.createInstantRecommendedQuestions,
     rerunAskingTask: askingResolver.rerunAskingTask,
+    submitClarification: askingResolver.submitClarification,
 
     // Adjustment
     adjustThreadResponse: askingResolver.adjustThreadResponse,

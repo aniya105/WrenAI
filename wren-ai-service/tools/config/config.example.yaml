@@ -133,6 +133,8 @@ pipes:
     document_store: qdrant
   - name: misleading_assistance
     llm: litellm_llm.default
+  - name: clarification_generation
+    llm: litellm_llm.default
   - name: data_assistance
     llm: litellm_llm.default
   - name: sql_pairs_indexing
@@ -191,6 +193,7 @@ settings:
   allow_intent_classification: true
   allow_sql_generation_reasoning: true
   allow_sql_functions_retrieval: true
+  enable_clarification: true
   enable_column_pruning: false
   max_sql_correction_retries: 3
   query_cache_maxsize: 1000

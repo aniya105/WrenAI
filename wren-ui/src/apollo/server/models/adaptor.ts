@@ -96,6 +96,7 @@ export enum AskResultType {
   GENERAL = 'GENERAL',
   TEXT_TO_SQL = 'TEXT_TO_SQL',
   MISLEADING_QUERY = 'MISLEADING_QUERY',
+  CLARIFICATION = 'CLARIFICATION',
 }
 
 // if it's view, viewId will be returned as well. It means the candidate is originally saved in mdl as a view.
@@ -128,6 +129,18 @@ export type AskDetailResult = AskResponse<
   AskResultStatus
 >;
 
+export interface ClarificationOption {
+  label: string;
+  value: string;
+}
+
+export interface ClarificationQuestion {
+  question: string;
+  type: string;
+  options?: ClarificationOption[];
+  reasoning?: string;
+}
+
 export type AskResult = AskResponse<
   Array<{
     type: AskCandidateType;
@@ -143,6 +156,7 @@ export type AskResult = AskResponse<
   retrievedTables?: string[];
   invalidSql?: string;
   traceId?: string;
+  clarificationQuestions?: ClarificationQuestion[];
 };
 
 export enum RecommendationQuestionStatus {

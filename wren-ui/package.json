@@ -20,7 +20,7 @@
     "apollo-server-micro": "^3.10.2",
     "axios": "^1.13.5",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^9.4.3",
+    "better-sqlite3": "^11.0.0",
     "cron-parser": "^5.1.1",
     "graphql": "^16.6.0",
     "graphql-type-json": "^0.3.2",

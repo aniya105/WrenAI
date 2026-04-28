@@ -63,6 +63,12 @@ export interface AskingTask {
   invalidSql?: string;
   traceId?: string;
   queryId?: string;
+  clarificationQuestions?: Array<{
+    question: string;
+    type: string;
+    options?: Array<{ label: string; value: string }>;
+    reasoning?: string;
+  }>;
 }
 
 // DetailedThread is a type that represents a detailed thread, which is a thread with responses.
@@ -201,6 +207,17 @@ export class AskingResolver {
     const askingService = ctx.askingService;
     await askingService.cancelAskingTask(taskId);
     return true;
+  }
+
+  public async submitClarification(
+    _root: any,
+    args: { queryId: string; answers: Array<{ questionIndex: number; answer: string }> },
+    ctx: IContext,
+  ): Promise<Task> {
+    const { queryId, answers } = args;
+    const askingService = ctx.askingService;
+    const task = await askingService.submitClarification(queryId, answers);
+    return task;
   }
 
   public async getAskingTask(
@@ -820,6 +837,7 @@ export class AskingResolver {
         ? safeFormatSQL(askingTask.invalidSql)
         : null,
       traceId: askingTask.traceId,
+      clarificationQuestions: askingTask.clarificationQuestions,
     };
   }
 }

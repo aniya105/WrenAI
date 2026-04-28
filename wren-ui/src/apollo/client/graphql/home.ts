@@ -85,6 +85,15 @@ const COMMON_ASKING_TASK = gql`
     invalidSql
     traceId
     queryId
+    clarificationQuestions {
+      question
+      type
+      options {
+        label
+        value
+      }
+      reasoning
+    }
   }
   ${COMMON_ERROR}
 `;
@@ -219,6 +228,14 @@ export const CANCEL_ASKING_TASK = gql`
 export const RERUN_ASKING_TASK = gql`
   mutation RerunAskingTask($responseId: Int!) {
     rerunAskingTask(responseId: $responseId) {
+      id
+    }
+  }
+`;
+
+export const SUBMIT_CLARIFICATION = gql`
+  mutation SubmitClarification($queryId: String!, $answers: [JSON!]!) {
+    submitClarification(queryId: $queryId, answers: $answers) {
       id
     }
   }

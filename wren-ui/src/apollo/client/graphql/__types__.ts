@@ -98,6 +98,7 @@ export enum ApiType {
 export type AskingTask = {
   __typename?: 'AskingTask';
   candidates: Array<ResultCandidate>;
+  clarificationQuestions?: Maybe<Array<ClarificationQuestion>>;
   error?: Maybe<Error>;
   intentReasoning?: Maybe<Scalars['String']>;
   invalidSql?: Maybe<Scalars['String']>;
@@ -127,6 +128,7 @@ export enum AskingTaskStatus {
 }
 
 export enum AskingTaskType {
+  CLARIFICATION = 'CLARIFICATION',
   GENERAL = 'GENERAL',
   MISLEADING_QUERY = 'MISLEADING_QUERY',
   TEXT_TO_SQL = 'TEXT_TO_SQL'
@@ -172,6 +174,20 @@ export enum ChartType {
   PIE = 'PIE',
   STACKED_BAR = 'STACKED_BAR'
 }
+
+export type ClarificationOption = {
+  __typename?: 'ClarificationOption';
+  label: Scalars['String'];
+  value: Scalars['String'];
+};
+
+export type ClarificationQuestion = {
+  __typename?: 'ClarificationQuestion';
+  options?: Maybe<Array<ClarificationOption>>;
+  question: Scalars['String'];
+  reasoning?: Maybe<Scalars['String']>;
+  type: Scalars['String'];
+};
 
 export type CompactColumn = {
   __typename?: 'CompactColumn';
@@ -724,6 +740,7 @@ export type Mutation = {
   saveTables: Scalars['JSON'];
   setDashboardSchedule: Dashboard;
   startSampleDataset: Scalars['JSON'];
+  submitClarification: Task;
   triggerDataSourceDetection: Scalars['Boolean'];
   updateCalculatedField: Scalars['JSON'];
   updateCurrentProject: Scalars['Boolean'];
@@ -968,6 +985,12 @@ export type MutationSetDashboardScheduleArgs = {
 
 export type MutationStartSampleDatasetArgs = {
   data: SampleDatasetInput;
+};
+
+
+export type MutationSubmitClarificationArgs = {
+  answers: Array<Scalars['JSON']>;
+  queryId: Scalars['String'];
 };
 
 

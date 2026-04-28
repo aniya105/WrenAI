@@ -1,0 +1,185 @@
+# Clarification Mechanism Test Cases
+# These test cases are used to evaluate the accuracy of the clarification check.
+# Each case includes: query, schema context, instructions, sql_samples, and expected outcome.
+
+test_cases:
+  # --- Cases that SHOULD trigger clarification ---
+
+  - id: table_ambiguity_sales
+    description: Table ambiguity when multiple tables match the query keyword
+    query: "show me sales"
+    schemas:
+      - table_name: "online_sales"
+        columns: ["order_id", "amount", "order_date"]
+      - table_name: "offline_sales"
+        columns: ["order_id", "amount", "store_id"]
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: true
+      ambiguity_type: "table_ambiguity"
+
+  - id: column_ambiguity_revenue
+    description: Column ambiguity when multiple tables have the same column name
+    query: "what is the revenue"
+    schemas:
+      - table_name: "products"
+        columns: ["product_id", "revenue", "cost"]
+      - table_name: "services"
+        columns: ["service_id", "revenue", "expense"]
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: true
+      ambiguity_type: "column_ambiguity"
+
+  - id: filter_missing_top_customers
+    description: Missing filter dimension for aggregation queries
+    query: "top customers"
+    schemas:
+      - table_name: "customers"
+        columns: ["customer_id", "name", "total_spend", "order_count"]
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: true
+      ambiguity_type: "filter_missing"
+
+  - id: metric_ambiguity_average
+    description: Metric ambiguity when aggregation target is unclear
+    query: "average sales by region"
+    schemas:
+      - table_name: "online_sales"
+        columns: ["region", "amount", "quantity"]
+      - table_name: "offline_sales"
+        columns: ["region", "amount", "quantity"]
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: true
+      ambiguity_type: "metric_ambiguity"
+
+  - id: instruction_conflict_time_window
+    description: User filter conflicts with instruction definition
+    query: "sales in 2023"
+    schemas:
+      - table_name: "sales"
+        columns: ["order_date", "amount"]
+    instructions:
+      - instruction: "Sales metrics are always calculated for the current fiscal year (2024)."
+    sql_samples: []
+    expected:
+      needs_clarification: true
+      ambiguity_type: "instruction_conflict"
+
+  - id: score_gap_ambiguity
+    description: Ambiguity detected by close top-1/top-2 retrieval scores
+    query: "orders by customer"
+    schemas:
+      - table_name: "online_orders"
+        columns: ["order_id", "customer_id", "amount"]
+        score: 0.85
+      - table_name: "offline_orders"
+        columns: ["order_id", "customer_id", "amount"]
+        score: 0.82
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: true
+      ambiguity_type: "table_ambiguity"
+
+  # --- Cases that SHOULD NOT trigger clarification ---
+
+  - id: explicit_table_column
+    description: Query explicitly specifies table and column
+    query: "show me total revenue from online_sales in 2024"
+    schemas:
+      - table_name: "online_sales"
+        columns: ["order_date", "amount"]
+      - table_name: "offline_sales"
+        columns: ["order_date", "amount"]
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: false
+
+  - id: instruction_disambiguation
+    description: Instructions explicitly define the queried term
+    query: "show me sales"
+    schemas:
+      - table_name: "online_sales"
+        columns: ["order_id", "amount"]
+      - table_name: "offline_sales"
+        columns: ["order_id", "amount"]
+    instructions:
+      - instruction: "The term 'sales' refers to the combined total of online_sales and offline_sales."
+    sql_samples: []
+    expected:
+      needs_clarification: false
+
+  - id: historical_pattern_consistent
+    description: Historical SQL samples consistently resolve to the same table
+    query: "daily sales"
+    schemas:
+      - table_name: "online_sales"
+        columns: ["order_date", "amount"]
+      - table_name: "offline_sales"
+        columns: ["order_date", "amount"]
+    instructions: []
+    sql_samples:
+      - question: "sales yesterday"
+        sql: "SELECT * FROM online_sales WHERE order_date = CURRENT_DATE - 1"
+      - question: "sales last week"
+        sql: "SELECT * FROM online_sales WHERE order_date >= CURRENT_DATE - 7"
+    expected:
+      needs_clarification: false
+
+  - id: no_relevant_schema
+    description: Query is unrelated to available schema
+    query: "weather forecast for tomorrow"
+    schemas: []
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: false
+
+  - id: single_table_clear_filter
+    description: Single table with clear filters
+    query: "orders from customer 123 in January 2024"
+    schemas:
+      - table_name: "orders"
+        columns: ["customer_id", "order_date", "amount"]
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: false
+
+  - id: single_choice_expected
+    description: Ambiguity that can be resolved with single choice
+    query: "revenue by product"
+    schemas:
+      - table_name: "products"
+        columns: ["product_id", "revenue", "cost"]
+      - table_name: "services"
+        columns: ["service_id", "revenue", "expense"]
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: true
+      ambiguity_type: "column_ambiguity"
+      question_types:
+        - "single_choice"
+
+  - id: text_input_expected
+    description: Ambiguity requiring free text input
+    query: "top performing items"
+    schemas:
+      - table_name: "sales"
+        columns: ["item_id", "amount", "quantity", "profit"]
+    instructions: []
+    sql_samples: []
+    expected:
+      needs_clarification: true
+      ambiguity_type: "filter_missing"
+      question_types:
+        - "text"

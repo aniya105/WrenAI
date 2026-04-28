@@ -64,6 +64,10 @@ export interface IWrenAIAdaptor {
   cancelAsk(queryId: string): Promise<void>;
   getAskResult(queryId: string): Promise<AskResult>;
   getAskStreamingResult(queryId: string): Promise<Readable>;
+  submitClarification(
+    queryId: string,
+    answers: Array<{ questionIndex: number; answer: string }>,
+  ): Promise<AsyncQueryResponse>;
 
   /**
    * After you choose a candidate, you can request AI service to generate the detail.
@@ -243,6 +247,29 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
       return { queryId: res.data.query_id };
     } catch (err: any) {
       logger.debug(`Got error when asking wren AI: ${getAIServiceError(err)}`);
+      throw err;
+    }
+  }
+
+  public async submitClarification(
+    queryId: string,
+    answers: Array<{ questionIndex: number; answer: string }>,
+  ): Promise<AsyncQueryResponse> {
+    try {
+      const res = await axios.post(
+        `${this.wrenAIBaseEndpoint}/v1/asks/${queryId}/clarify`,
+        {
+          clarification_answers: answers.map((a) => ({
+            question_index: a.questionIndex,
+            answer: a.answer,
+          })),
+        },
+      );
+      return { queryId: res.data.query_id };
+    } catch (err: any) {
+      logger.debug(
+        `Got error when submitting clarification: ${getAIServiceError(err)}`,
+      );
       throw err;
     }
   }
@@ -833,6 +860,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
       retrievedTables: body?.retrieved_tables,
       invalidSql: body?.invalid_sql,
       traceId: body?.trace_id,
+      clarificationQuestions: body?.clarification_questions,
     };
   }
 

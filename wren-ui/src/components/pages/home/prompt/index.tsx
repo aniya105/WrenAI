@@ -32,6 +32,9 @@ interface Props {
   inputProps: {
     placeholder: string;
   };
+  onSubmitClarification?: (
+    answers: Array<{ questionIndex: number; answer: string }>,
+  ) => Promise<void>;
 }
 
 interface Attributes {
@@ -60,6 +63,7 @@ export default forwardRef<Attributes, Props>(function Prompt(props, ref) {
     onCreateResponse,
     onStopStreaming,
     onStopRecommend,
+    onSubmitClarification,
     inputProps,
   } = props;
   const askProcessState = useAskProcessState();
@@ -78,6 +82,7 @@ export default forwardRef<Attributes, Props>(function Prompt(props, ref) {
       askingStreamTask, // for general answer
       recommendedQuestions, // guiding user to ask
       intentReasoning: askingTask?.intentReasoning || '',
+      clarificationQuestions: askingTask?.clarificationQuestions || [],
     }),
     [data],
   );
@@ -171,6 +176,7 @@ export default forwardRef<Attributes, Props>(function Prompt(props, ref) {
           processState={currentProcessState}
           onSelectRecommendedQuestion={selectRecommendedQuestion}
           onIntentSQLAnswer={intentSQLAnswer}
+          onSubmitClarification={onSubmitClarification}
           onClose={closeResult}
           onStop={stopProcess}
         />

@@ -70,6 +70,8 @@ pipes:
     engine: wren_ui
   - name: user_guide_assistance
     llm: litellm_llm.default
+  - name: clarification_generation
+    llm: litellm_llm.default
   - name: data_assistance
     llm: litellm_llm.default
     
@@ -82,6 +84,7 @@ settings:
   is_oss: true
   table_retrieval_size: 10
   table_column_retrieval_size: 1000
+  enable_clarification: true
   query_cache_maxsize: 1000
   query_cache_ttl: 3600
   langfuse_host: https://cloud.langfuse.com

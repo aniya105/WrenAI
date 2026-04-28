@@ -133,6 +133,8 @@ pipes:
     document_store: qdrant
   - name: misleading_assistance
     llm: litellm_llm.default
+  - name: clarification_generation
+    llm: litellm_llm.default
   - name: data_assistance
     llm: litellm_llm.default
   - name: sql_pairs_indexing

@@ -623,6 +623,19 @@ export const typeDefs = gql`
     GENERAL
     TEXT_TO_SQL
     MISLEADING_QUERY
+    CLARIFICATION
+  }
+
+  type ClarificationOption {
+    label: String!
+    value: String!
+  }
+
+  type ClarificationQuestion {
+    question: String!
+    type: String!
+    options: [ClarificationOption!]
+    reasoning: String
   }
 
   enum ChartTaskStatus {
@@ -668,6 +681,7 @@ export const typeDefs = gql`
     invalidSql: String
     traceId: String
     queryId: String
+    clarificationQuestions: [ClarificationQuestion!]
   }
 
   input InstantRecommendedQuestionsInput {
@@ -1219,6 +1233,7 @@ export const typeDefs = gql`
 
     # Ask
     createAskingTask(data: AskingTaskInput!): Task!
+    submitClarification(queryId: String!, answers: [JSON!]!): Task!
     cancelAskingTask(taskId: String!): Boolean!
     rerunAskingTask(responseId: Int!): Task!
 

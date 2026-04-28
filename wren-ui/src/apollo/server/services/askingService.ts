@@ -216,6 +216,11 @@ export interface IAskingService {
     threadId: number,
   ): Promise<ThreadRecommendQuestionResult>;
 
+  submitClarification(
+    queryId: string,
+    answers: Array<{ questionIndex: number; answer: string }>,
+  ): Promise<Task>;
+
   deleteAllByProjectId(projectId: number): Promise<void>;
 }
 
@@ -656,6 +661,19 @@ export class AskingService implements IAskingService {
       this.telemetry.sendEvent(eventName, {}, err.extensions?.service, false);
       throw err;
     }
+  }
+
+  public async submitClarification(
+    queryId: string,
+    answers: Array<{ questionIndex: number; answer: string }>,
+  ): Promise<Task> {
+    const response = await this.askingTaskTracker.submitClarification(
+      queryId,
+      answers,
+    );
+    return {
+      id: response.queryId,
+    };
   }
 
   public async getAskingTask(
