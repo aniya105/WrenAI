@@ -211,7 +211,10 @@ export class AskingResolver {
 
   public async submitClarification(
     _root: any,
-    args: { queryId: string; answers: Array<{ questionIndex: number; answer: string }> },
+    args: {
+      queryId: string;
+      answers: Array<{ questionIndex: number; answer: string }>;
+    },
     ctx: IContext,
   ): Promise<Task> {
     const { queryId, answers } = args;

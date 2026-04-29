@@ -58,10 +58,12 @@ interface Props {
     question: string;
     sql: string;
   }) => void;
-  onSubmitClarification?: (answers: Array<{
-    questionIndex: number;
-    answer: string;
-  }>) => Promise<void>;
+  onSubmitClarification?: (
+    answers: Array<{
+      questionIndex: number;
+      answer: string;
+    }>,
+  ) => Promise<void>;
   onClose: () => void;
   onStop: () => Promise<void>;
   loading?: boolean;

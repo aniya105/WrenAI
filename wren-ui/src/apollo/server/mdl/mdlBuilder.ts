@@ -517,7 +517,10 @@ export class MDLBuilder implements IMDLBuilder {
       case DataSourceName.DATABRICKS:
         return WrenEngineDataSourceType.DATABRICKS;
       case DataSourceName.VERTICA:
-        return WrenEngineDataSourceType.VERTICA;
+        // wren-engine doesn't support VERTICA yet, use POSTGRES as workaround
+        // since Vertica syntax is closer to PostgreSQL
+        // ibis-server will handle actual Vertica execution
+        return WrenEngineDataSourceType.POSTGRES;
       default:
         throw new Error(
           `Unsupported data source type: ${type} found when building manifest`,

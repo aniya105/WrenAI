@@ -1,0 +1,110 @@
+# 国内网络优化版 Dockerfile
+# 使用方式：将本文件保存为 Dockerfile.cn，然后执行：
+#   docker build -f Dockerfile.cn -t wren-ui:cn .
+#
+# 提示：如果拉取基础镜像很慢，建议先配置 Docker 镜像加速，或替换 FROM 为阿里云镜像地址，例如：
+#   FROM registry.cn-hangzhou.aliyuncs.com/nodejs/node:18-bookworm-slim AS base
+
+FROM registry.cn-hangzhou.aliyuncs.com/nodejs/node:18-bookworm-slim AS base
+
+# ==========================================
+# 1. 替换 Debian APT 源为阿里云镜像
+# ==========================================
+# Debian 12 (bookworm) 使用 DEB822 格式 sources，同时兼容传统 sources.list
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
+      sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources; \
+    elif [ -f /etc/apt/sources.list ]; then \
+      sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+      sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list; \
+    fi
+
+# Install required packages
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the build.
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV production
+
+# ==========================================
+# 2. 设置 npm / Yarn / Corepack 使用国内镜像源
+# ==========================================
+# NPM 全局注册表（影响 corepack 下载 yarn）
+ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
+# Yarn 4 包下载注册表
+ENV YARN_NPM_REGISTRY_SERVER=https://registry.npmmirror.com
+# Corepack 下载 Yarn 时使用的注册表
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+# 增加 HTTP 超时时间，防止网络波动导致安装失败
+ENV YARN_HTTP_TIMEOUT=300000
+
+WORKDIR /app
+
+# Enable corepack to manage yarn versions and set the correct yarn version
+RUN corepack enable
+COPY .yarnrc.yml package.json yarn.lock ./
+COPY .yarn/releases/yarn-4.5.3.cjs .yarn/releases/yarn-4.5.3.cjs
+RUN corepack prepare yarn@4.5.3 --activate
+
+FROM base AS deps
+WORKDIR /app
+
+# Install dependencies based on the preferred package manager
+RUN yarn install --immutable
+RUN yarn add sharp
+
+RUN yarn add vega-lite
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY public ./public
+COPY src ./src
+COPY .eslintrc.json ./
+COPY .eslintignore ./
+COPY .prettierrc ./
+COPY next.config.js ./
+COPY tsconfig.json ./
+
+RUN yarn build
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+COPY --from=builder /app/public ./public
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY migrations ./migrations
+COPY knexfile.js ./knexfile.js
+
+# Copy knex and its dependencies from builder to runner
+COPY --from=builder /app/node_modules/knex ./node_modules/knex
+COPY --from=builder /app/node_modules/rechoir ./node_modules/rechoir
+COPY --from=builder /app/node_modules/resolve ./node_modules/resolve
+COPY --from=builder /app/node_modules/is-core-module ./node_modules/is-core-module
+COPY --from=builder /app/node_modules/hasown ./node_modules/hasown
+COPY --from=builder /app/node_modules/function-bind ./node_modules/function-bind
+COPY --from=builder /app/node_modules/interpret ./node_modules/interpret
+COPY --from=builder /app/node_modules/resolve-from ./node_modules/resolve-from
+COPY --from=builder /app/node_modules/tildify ./node_modules/tildify
+COPY --from=builder /app/node_modules/getopts ./node_modules/getopts
+COPY --from=builder /app/node_modules/escalade/sync ./node_modules/escalade/sync
+COPY --from=builder /app/node_modules/.yarn-state.yml ./node_modules/.yarn-state.yml
+
+EXPOSE 3000
+
+ENV PORT 3000
+
+# server.js is created by next build from the standalone output
+# https://nextjs.org/docs/pages/api-reference/next-config-js/output
+CMD yarn knex migrate:latest && HOSTNAME="0.0.0.0" node server.js

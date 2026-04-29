@@ -1033,7 +1033,8 @@ describe('IbisAdaptor', () => {
       DataSourceName.VERTICA,
       mockVerticaConnectionInfo,
     );
-    const connectionUrl = 'vertica://my-user:my-password@localhost:5433/my-database?sslmode=require';
+    const connectionUrl =
+      'vertica://my-user:my-password@localhost:5433/my-database?sslmode=require';
 
     expect(result).toEqual([]);
     expect(mockedAxios.post).toHaveBeenCalledWith(
