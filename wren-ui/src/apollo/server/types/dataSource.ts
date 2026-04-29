@@ -11,6 +11,7 @@ export enum DataSourceName {
   ATHENA = 'ATHENA',
   REDSHIFT = 'REDSHIFT',
   DATABRICKS = 'DATABRICKS',
+  VERTICA = 'VERTICA',
 }
 
 export interface DataSource {
@@ -26,8 +27,19 @@ export interface SampleDatasetData {
 export type DataSourceProperties = { displayName: string } & Partial<
   BigQueryDataSourceProperties &
     DuckDBDataSourceProperties &
-    PGDataSourceProperties
+    PGDataSourceProperties &
+    VerticaDataSourceProperties
 >;
+
+export interface VerticaDataSourceProperties {
+  displayName: string;
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl?: boolean;
+}
 
 export interface BigQueryDataSourceProperties {
   displayName: string;

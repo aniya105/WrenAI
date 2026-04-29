@@ -136,6 +136,15 @@ export type IbisDatabricksConnectionInfo =
   | IbisDatabricksPersonalAccessTokenAuth
   | IbisDatabricksServicePrincipalAuth;
 
+export interface IbisVerticaConnectionInfo {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl?: boolean;
+}
+
 export enum SupportedDataSource {
   POSTGRES = 'POSTGRES',
   BIG_QUERY = 'BIG_QUERY',
@@ -148,6 +157,7 @@ export enum SupportedDataSource {
   ATHENA = 'ATHENA',
   REDSHIFT = 'REDSHIFT',
   DATABRICKS = 'DATABRICKS',
+  VERTICA = 'VERTICA',
 }
 
 const dataSourceUrlMap: Record<SupportedDataSource, string> = {
@@ -162,6 +172,7 @@ const dataSourceUrlMap: Record<SupportedDataSource, string> = {
   [SupportedDataSource.ATHENA]: 'athena',
   [SupportedDataSource.REDSHIFT]: 'redshift',
   [SupportedDataSource.DATABRICKS]: 'databricks',
+  [SupportedDataSource.VERTICA]: 'vertica',
 };
 
 export interface TableResponse {

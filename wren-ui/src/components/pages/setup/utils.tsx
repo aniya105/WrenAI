@@ -117,6 +117,11 @@ export const DATA_SOURCE_OPTIONS = {
     guide: 'https://docs.getwren.ai/oss/guide/connect/databricks',
     disabled: false,
   },
+  [DATA_SOURCES.VERTICA]: {
+    ...getDataSourceConfig(DATA_SOURCES.VERTICA),
+    guide: 'https://docs.getwren.ai/oss/guide/connect/vertica',
+    disabled: false,
+  },
 } as { [key: string]: ButtonOption };
 
 export const TEMPLATE_OPTIONS = {

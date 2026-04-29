@@ -17,6 +17,7 @@ import {
   POSTGRES_CONNECTION_INFO,
   TRINO_CONNECTION_INFO,
   SNOWFLAKE_CONNECTION_INFO,
+  VERTICA_CONNECTION_INFO,
 } from '../../repositories';
 import { snakeCase } from 'lodash';
 import { Encryptor } from '../../utils';
@@ -91,6 +92,15 @@ describe('IbisAdaptor', () => {
     account: 'my-account',
     database: 'my-database',
     schema: 'my-schema',
+  };
+
+  const mockVerticaConnectionInfo: VERTICA_CONNECTION_INFO = {
+    host: 'localhost',
+    port: 5433,
+    database: 'my-database',
+    user: 'my-user',
+    password: 'my-password',
+    ssl: true,
   };
 
   const mockManifest: Manifest = {
@@ -1009,6 +1019,26 @@ describe('IbisAdaptor', () => {
       {
         connectionInfo: { connectionUrl: postgresConnectionUrl },
       },
+    );
+  });
+
+  it('should get vertica constraints', async () => {
+    const mockResponse = { data: [] };
+    mockedAxios.post.mockResolvedValue(mockResponse);
+    mockedEncryptor.prototype.decrypt.mockReturnValue(
+      JSON.stringify({ password: mockVerticaConnectionInfo.password }),
+    );
+
+    const result = await ibisAdaptor.getConstraints(
+      DataSourceName.VERTICA,
+      mockVerticaConnectionInfo,
+    );
+    const connectionUrl = 'vertica://my-user:my-password@localhost:5433/my-database?sslmode=require';
+
+    expect(result).toEqual([]);
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      `${ibisServerEndpoint}/v2/connector/vertica/metadata/constraints`,
+      { connectionInfo: { connectionUrl } },
     );
   });
 

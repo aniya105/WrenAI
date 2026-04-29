@@ -354,7 +354,8 @@ export enum DataSourceName {
   POSTGRES = 'POSTGRES',
   REDSHIFT = 'REDSHIFT',
   SNOWFLAKE = 'SNOWFLAKE',
-  TRINO = 'TRINO'
+  TRINO = 'TRINO',
+  VERTICA = 'VERTICA'
 }
 
 export enum DatabricksConnectionType {

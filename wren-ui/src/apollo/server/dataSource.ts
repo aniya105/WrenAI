@@ -29,6 +29,7 @@ import {
   DATABRICKS_CONNECTION_INFO,
   DATABRICKS_PERSONAL_ACCESS_TOKEN_AUTH,
   DATABRICKS_SERVICE_PRINCIPAL_AUTH,
+  VERTICA_CONNECTION_INFO,
 } from './repositories';
 import { DataSourceName } from './types';
 import { getConfig } from './config';
@@ -489,6 +490,31 @@ const dataSource = {
   } as IDataSourceConnectionInfo<
     DATABRICKS_CONNECTION_INFO,
     IbisDatabricksConnectionInfo
+  >,
+
+  // Vertica
+  [DataSourceName.VERTICA]: {
+    sensitiveProps: ['password'],
+    toIbisConnectionInfo(connectionInfo) {
+      const decryptedConnectionInfo = decryptConnectionInfo(
+        DataSourceName.VERTICA,
+        connectionInfo,
+      );
+      const { host, port, database, user, password, ssl } =
+        decryptedConnectionInfo as VERTICA_CONNECTION_INFO;
+
+      const encodedPassword = encodeURIComponent(password);
+      let connectionUrl = `vertica://${user}:${encodedPassword}@${host}:${port}/${database}`;
+      if (ssl) {
+        connectionUrl += '?sslmode=require';
+      }
+      return {
+        connectionUrl,
+      };
+    },
+  } as IDataSourceConnectionInfo<
+    VERTICA_CONNECTION_INFO,
+    { connectionUrl: string }
   >,
 };
 
