@@ -32,9 +32,7 @@ interface Props {
   inputProps: {
     placeholder: string;
   };
-  onSubmitClarification?: (
-    answers: Array<{ questionIndex: number; answer: string }>,
-  ) => Promise<void>;
+  onSubmitClarification?: (clarificationAnswer: string) => Promise<void>;
 }
 
 interface Attributes {

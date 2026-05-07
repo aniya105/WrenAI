@@ -213,13 +213,13 @@ export class AskingResolver {
     _root: any,
     args: {
       queryId: string;
-      answers: Array<{ questionIndex: number; answer: string }>;
+      clarificationAnswer: string;
     },
     ctx: IContext,
   ): Promise<Task> {
-    const { queryId, answers } = args;
+    const { queryId, clarificationAnswer } = args;
     const askingService = ctx.askingService;
-    const task = await askingService.submitClarification(queryId, answers);
+    const task = await askingService.submitClarification(queryId, clarificationAnswer);
     return task;
   }
 
