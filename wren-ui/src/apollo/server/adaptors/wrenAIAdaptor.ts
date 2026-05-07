@@ -66,7 +66,7 @@ export interface IWrenAIAdaptor {
   getAskStreamingResult(queryId: string): Promise<Readable>;
   submitClarification(
     queryId: string,
-    answers: Array<{ questionIndex: number; answer: string }>,
+    clarificationAnswer: string,
   ): Promise<AsyncQueryResponse>;
 
   /**
@@ -253,16 +253,13 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
 
   public async submitClarification(
     queryId: string,
-    answers: Array<{ questionIndex: number; answer: string }>,
+    clarificationAnswer: string,
   ): Promise<AsyncQueryResponse> {
     try {
       const res = await axios.post(
         `${this.wrenAIBaseEndpoint}/v1/asks/${queryId}/clarify`,
         {
-          clarification_answers: answers.map((a) => ({
-            question_index: a.questionIndex,
-            answer: a.answer,
-          })),
+          clarification_answer: clarificationAnswer,
         },
       );
       return { queryId: res.data.query_id };

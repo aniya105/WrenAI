@@ -38,7 +38,6 @@ sys.modules["src.web.v1.services.ask"].AskHistory = type(sys)("AskHistory")
 
 _spec.loader.exec_module(clarification_generation)
 
-ClarificationOption = clarification_generation.ClarificationOption
 ClarificationQuestion = clarification_generation.ClarificationQuestion
 ClarificationResult = clarification_generation.ClarificationResult
 post_process = clarification_generation.post_process
@@ -53,11 +52,6 @@ class TestClarificationModels:
             clarification_questions=[
                 ClarificationQuestion(
                     question="Which sales table?",
-                    type="single_choice",
-                    options=[
-                        ClarificationOption(label="Online", value="online_sales"),
-                        ClarificationOption(label="Offline", value="offline_sales"),
-                    ],
                     reasoning="Schema has both online_sales and offline_sales",
                 )
             ],
@@ -65,8 +59,7 @@ class TestClarificationModels:
         assert result.needs_clarification is True
         assert result.ambiguity_type == "table_ambiguity"
         assert len(result.clarification_questions) == 1
-        assert result.clarification_questions[0].type == "single_choice"
-        assert len(result.clarification_questions[0].options) == 2
+        assert result.clarification_questions[0].question == "Which sales table?"
 
     def test_clarification_result_no_clarification(self):
         result = ClarificationResult(needs_clarification=False)
@@ -74,14 +67,13 @@ class TestClarificationModels:
         assert result.clarification_questions is None
         assert result.ambiguity_type is None
 
-    def test_clarification_question_text_type(self):
+    def test_clarification_question_with_reasoning(self):
         question = ClarificationQuestion(
             question="What time range?",
-            type="text",
             reasoning="User didn't specify a date filter",
         )
-        assert question.type == "text"
-        assert question.options is None
+        assert question.question == "What time range?"
+        assert question.reasoning == "User didn't specify a date filter"
 
     def test_invalid_ambiguity_type_rejected(self):
         with pytest.raises(ValueError):
@@ -101,11 +93,6 @@ class TestPostProcess:
                 "clarification_questions": [
                     {
                         "question": "Which revenue?",
-                        "type": "single_choice",
-                        "options": [
-                            {"label": "Gross", "value": "gross_revenue"},
-                            {"label": "Net", "value": "net_revenue"},
-                        ],
                         "reasoning": "Both exist in schema",
                     }
                 ],
@@ -142,8 +129,7 @@ class TestPostProcess:
                 "clarification_questions": [
                     {
                         "question": "Bad question",
-                        "type": "single_choice",
-                        # missing options and reasoning
+                        # missing reasoning is ok since it's Optional in old model but required in new
                     }
                 ],
             }
@@ -166,8 +152,6 @@ class TestJSONSchemaOutput:
         # Check nested question schema
         question_props = schema["$defs"]["ClarificationQuestion"]["properties"]
         assert "question" in question_props
-        assert "type" in question_props
-        assert "options" in question_props
         assert "reasoning" in question_props
 
     def test_model_json_schema_enum_values(self):
@@ -180,8 +164,3 @@ class TestJSONSchemaOutput:
         assert "filter_missing" in ambiguity_enum
         assert "metric_ambiguity" in ambiguity_enum
         assert "instruction_conflict" in ambiguity_enum
-
-        question_schema = schema["$defs"]["ClarificationQuestion"]
-        type_enum = question_schema["properties"]["type"]["enum"]
-        assert "single_choice" in type_enum
-        assert "text" in type_enum

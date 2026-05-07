@@ -216,10 +216,7 @@ export interface IAskingService {
     threadId: number,
   ): Promise<ThreadRecommendQuestionResult>;
 
-  submitClarification(
-    queryId: string,
-    answers: Array<{ questionIndex: number; answer: string }>,
-  ): Promise<Task>;
+  submitClarification(queryId: string, clarificationAnswer: string): Promise<Task>;
 
   deleteAllByProjectId(projectId: number): Promise<void>;
 }
@@ -665,11 +662,11 @@ export class AskingService implements IAskingService {
 
   public async submitClarification(
     queryId: string,
-    answers: Array<{ questionIndex: number; answer: string }>,
+    clarificationAnswer: string,
   ): Promise<Task> {
     const response = await this.askingTaskTracker.submitClarification(
       queryId,
-      answers,
+      clarificationAnswer,
     );
     return {
       id: response.queryId,

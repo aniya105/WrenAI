@@ -87,11 +87,6 @@ const COMMON_ASKING_TASK = gql`
     queryId
     clarificationQuestions {
       question
-      type
-      options {
-        label
-        value
-      }
       reasoning
     }
   }
@@ -234,8 +229,8 @@ export const RERUN_ASKING_TASK = gql`
 `;
 
 export const SUBMIT_CLARIFICATION = gql`
-  mutation SubmitClarification($queryId: String!, $answers: [JSON!]!) {
-    submitClarification(queryId: $queryId, answers: $answers) {
+  mutation SubmitClarification($queryId: String!, $clarificationAnswer: String!) {
+    submitClarification(queryId: $queryId, clarificationAnswer: $clarificationAnswer) {
       id
     }
   }

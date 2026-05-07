@@ -155,7 +155,7 @@ test_cases:
       needs_clarification: false
 
   - id: single_choice_expected
-    description: Ambiguity that can be resolved with single choice
+    description: Ambiguity that can be resolved with text input
     query: "revenue by product"
     schemas:
       - table_name: "products"
@@ -167,8 +167,6 @@ test_cases:
     expected:
       needs_clarification: true
       ambiguity_type: "column_ambiguity"
-      question_types:
-        - "single_choice"
 
   - id: text_input_expected
     description: Ambiguity requiring free text input
@@ -181,5 +179,3 @@ test_cases:
     expected:
       needs_clarification: true
       ambiguity_type: "filter_missing"
-      question_types:
-        - "text"

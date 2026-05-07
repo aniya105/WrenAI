@@ -627,16 +627,9 @@ export const typeDefs = gql`
     CLARIFICATION
   }
 
-  type ClarificationOption {
-    label: String!
-    value: String!
-  }
-
   type ClarificationQuestion {
     question: String!
-    type: String!
-    options: [ClarificationOption!]
-    reasoning: String
+    reasoning: String!
   }
 
   enum ChartTaskStatus {
@@ -1234,7 +1227,7 @@ export const typeDefs = gql`
 
     # Ask
     createAskingTask(data: AskingTaskInput!): Task!
-    submitClarification(queryId: String!, answers: [JSON!]!): Task!
+    submitClarification(queryId: String!, clarificationAnswer: String!): Task!
     cancelAskingTask(taskId: String!): Boolean!
     rerunAskingTask(responseId: Int!): Task!
 

@@ -129,16 +129,9 @@ export type AskDetailResult = AskResponse<
   AskResultStatus
 >;
 
-export interface ClarificationOption {
-  label: string;
-  value: string;
-}
-
 export interface ClarificationQuestion {
   question: string;
-  type: string;
-  options?: ClarificationOption[];
-  reasoning?: string;
+  reasoning: string;
 }
 
 export type AskResult = AskResponse<

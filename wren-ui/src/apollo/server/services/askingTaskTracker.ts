@@ -53,7 +53,7 @@ export interface IAskingTaskTracker {
   ): Promise<void>;
   submitClarification(
     queryId: string,
-    answers: Array<{ questionIndex: number; answer: string }>,
+    clarificationAnswer: string,
   ): Promise<{ queryId: string }>;
 }
 
@@ -191,11 +191,11 @@ export class AskingTaskTracker implements IAskingTaskTracker {
 
   public async submitClarification(
     queryId: string,
-    answers: Array<{ questionIndex: number; answer: string }>,
+    clarificationAnswer: string,
   ): Promise<{ queryId: string }> {
     const response = await this.wrenAIAdaptor.submitClarification(
       queryId,
-      answers,
+      clarificationAnswer,
     );
 
     // Reset the task to allow continued polling after clarification

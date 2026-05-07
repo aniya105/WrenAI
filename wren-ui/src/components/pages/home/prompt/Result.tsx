@@ -267,13 +267,8 @@ const ClarificationAnswer = (props: Props) => {
 
   const handleSubmit = async () => {
     if (!onSubmitClarification) return;
-    const formattedAnswers = Object.entries(answers).map(
-      ([questionIndex, answer]) => ({
-        questionIndex: parseInt(questionIndex, 10),
-        answer,
-      }),
-    );
-    await onSubmitClarification(formattedAnswers);
+    const clarificationAnswer = Object.values(answers).join(', ');
+    await onSubmitClarification(clarificationAnswer);
   };
 
   return (
@@ -303,77 +298,18 @@ const ClarificationAnswer = (props: Props) => {
             {q.reasoning && (
               <div className="gray-6 text-sm mb-2">{q.reasoning}</div>
             )}
-            {q.type === 'single_choice' && (
-              <div className="d-flex flex-column gap-2">
-                {q.options?.map((opt) => (
-                  <label
-                    key={opt.value}
-                    className="d-flex align-center cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name={`clarification-${index}`}
-                      value={opt.value}
-                      checked={answers[index] === opt.value}
-                      onChange={(e) =>
-                        setAnswers((prev) => ({
-                          ...prev,
-                          [index]: e.target.value,
-                        }))
-                      }
-                      className="mr-2"
-                    />
-                    <span>{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            {q.type === 'multiple_choice' && (
-              <div className="d-flex flex-column gap-2">
-                {q.options?.map((opt) => (
-                  <label
-                    key={opt.value}
-                    className="d-flex align-center cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      value={opt.value}
-                      checked={(answers[index] || '')
-                        .split(',')
-                        .includes(opt.value)}
-                      onChange={(e) => {
-                        const current = (answers[index] || '')
-                          .split(',')
-                          .filter(Boolean);
-                        const next = e.target.checked
-                          ? [...current, opt.value]
-                          : current.filter((v) => v !== opt.value);
-                        setAnswers((prev) => ({
-                          ...prev,
-                          [index]: next.join(','),
-                        }));
-                      }}
-                      className="mr-2"
-                    />
-                    <span>{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            {q.type === 'text' && (
-              <textarea
-                className="w-100 p-2 border rounded"
-                rows={3}
-                value={answers[index] || ''}
-                onChange={(e) =>
-                  setAnswers((prev) => ({
-                    ...prev,
-                    [index]: e.target.value,
-                  }))
-                }
-                placeholder="Type your answer here..."
-              />
-            )}
+            <textarea
+              className="w-100 p-2 border rounded"
+              rows={3}
+              value={answers[index] || ''}
+              onChange={(e) =>
+                setAnswers((prev) => ({
+                  ...prev,
+                  [index]: e.target.value,
+                }))
+              }
+              placeholder="Type your answer here..."
+            />
           </div>
         ))}
       </div>

@@ -57,26 +57,14 @@ class AskError(BaseModel):
     message: str
 
 
-class ClarificationOption(BaseModel):
-    label: str
-    value: str
-
-
 class ClarificationQuestion(BaseModel):
     question: str
-    type: Literal["single_choice", "text"]
-    options: Optional[List[ClarificationOption]] = None
-    reasoning: Optional[str] = None
-
-
-class ClarificationAnswer(BaseModel):
-    question_index: int
-    answer: str
+    reasoning: str
 
 
 class ClarifyRequest(BaseModel):
     query_id: str
-    clarification_answers: List[ClarificationAnswer]
+    clarification_answer: str
 
 
 class AskResultRequest(BaseModel):
@@ -115,7 +103,6 @@ class AskResultResponse(_AskResultResponse):
     general_type: Optional[
         Literal["MISLEADING_QUERY", "DATA_ASSISTANCE", "USER_GUIDE"]
     ] = Field(None, exclude=True)
-    clarification_questions: Optional[List[ClarificationQuestion]] = Field(None, exclude=True)
 
 
 class AskService:
@@ -852,12 +839,8 @@ class AskService:
             )
             return
 
-        # Build clarification summary from user's answers
-        clarification_summary_parts = []
-        for answer in clarify_request.clarification_answers:
-            clarification_summary_parts.append(answer.answer)
-
-        clarification_summary = "; ".join(clarification_summary_parts)
+        # Build clarification summary from user's answer
+        clarification_summary = clarify_request.clarification_answer
 
         # Create a new AskHistory entry for the clarification exchange
         # We store the original question and the user's clarification as a pseudo-history

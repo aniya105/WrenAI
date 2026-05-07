@@ -321,16 +321,14 @@ export default function useAskPrompt(threadId?: number) {
     });
   };
 
-  const onSubmitClarification = async (
-    answers: Array<{ questionIndex: number; answer: string }>,
-  ) => {
+  const onSubmitClarification = async (clarificationAnswer: string) => {
     const queryId = askingTask?.queryId;
     if (!queryId) return;
     try {
       // Reset stream task if any
       askingStreamTaskResult.reset();
       await submitClarification({
-        variables: { queryId, answers },
+        variables: { queryId, clarificationAnswer },
       });
       // Restart polling after submitting clarification
       await fetchAskingTask({

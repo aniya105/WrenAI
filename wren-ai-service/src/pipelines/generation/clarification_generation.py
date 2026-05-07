@@ -21,16 +21,9 @@ logger = logging.getLogger("wren-ai-service")
 ### Pydantic Models for Structured Output
 
 
-class ClarificationOption(BaseModel):
-    label: str
-    value: str
-
-
 class ClarificationQuestion(BaseModel):
     question: str
-    type: Literal["single_choice", "text"]
-    options: Optional[list[ClarificationOption]] = None
-    reasoning: Optional[str] = None
+    reasoning: str
 
 
 class ClarificationResult(BaseModel):
@@ -82,10 +75,8 @@ You are an expert data query disambiguation assistant. Your goal is to analyze t
 
 ### Clarification Question Guidelines ###
 - Generate 1-3 targeted clarification questions when ambiguity is detected.
-- Use `single_choice` type when there are a small number of clear alternatives (e.g., which table, which column).
-- Use `text` type when the user needs to provide additional context (e.g., time range, specific values).
-- Each `single_choice` question MUST include `options` with `label` (display text) and `value` (schema identifier).
-- Each question SHOULD include a brief `reasoning` explaining why this clarification is needed.
+- Each question should be a text input (user types the answer).
+- Each question MUST include a `reasoning` field explaining why this clarification is needed.
 - Do NOT ask for clarification if the query is completely unrelated to the schema (that is handled separately).
 
 ### Output Format ###

@@ -90,7 +90,6 @@ AskRequest = _ask_module.AskRequest
 AskResultRequest = _ask_module.AskResultRequest
 AskResultResponse = _ask_module.AskResultResponse
 AskHistory = _ask_module.AskHistory
-ClarificationAnswer = _ask_module.ClarificationAnswer
 ClarifyRequest = _ask_module.ClarifyRequest
 
 
@@ -198,7 +197,7 @@ class TestClarifyAndResume:
     def test_clarify_and_resume_missing_query_id(self, ask_service_enabled):
         clarify_request = ClarifyRequest(
             query_id="non-existent-id",
-            clarification_answers=[ClarificationAnswer(question_index=0, answer="online")],
+            clarification_answer="online",
         )
 
         async def run():
@@ -227,10 +226,7 @@ class TestClarifyAndResume:
 
         clarify_request = ClarifyRequest(
             query_id=query_id,
-            clarification_answers=[
-                ClarificationAnswer(question_index=0, answer="online sales"),
-                ClarificationAnswer(question_index=1, answer="2024"),
-            ],
+            clarification_answer="online sales, 2024",
         )
 
         async def run():
