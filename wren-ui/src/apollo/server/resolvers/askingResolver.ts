@@ -65,9 +65,7 @@ export interface AskingTask {
   queryId?: string;
   clarificationQuestions?: Array<{
     question: string;
-    type: string;
-    options?: Array<{ label: string; value: string }>;
-    reasoning?: string;
+    reasoning: string;
   }>;
 }
 
